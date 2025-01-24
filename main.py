@@ -29,10 +29,10 @@ def login(username, email):
     st.rerun()
 
 
-@st.cache_data
+@st.cache_data()
 def load_sessions():
     scrum_sessions = (db.collection("scrum")
-                      .where("members", "array_contains", st.session_state["user"]["id"])
+                      .where( filter=FieldFilter("members", "array_contains", st.session_state["user"]["id"]))
                       .order_by('date', direction='DESCENDING')
                       .get())
     return list(map(ref_to_dict, scrum_sessions))
@@ -42,15 +42,22 @@ def load_sessions():
 def create_session():
     with st.form("new_session", border=False, enter_to_submit=False):
         session_name = st.text_input("Enter session name")
-        submit_button = st.form_submit_button("Start session")
+        if st.form_submit_button("Start session"):
+            db.collection("scrum").add({
+                "name": session_name,
+                "creator": st.session_state["user"]["id"],
+                "date": firestore.SERVER_TIMESTAMP,
+                "members": [st.session_state["user"]["id"]]
+            })
+            st.cache_data.clear()
+            st.rerun()
 
 
 if st.session_state.get("user") is None:
     cached_user_email = read_settings('email')
+    print('email', cached_user_email)
     if cached_user_email:
-        user = db.collection("users").where(filter=FieldFilter("email", "==", cached_user_email)).get()
-        if user:
-            st.session_state["user"] = ref_to_dict(user[0])
+        login(None, cached_user_email)
 
     name_input = st.text_input("Enter your name")
     email_input = st.text_input("Enter your email")
@@ -60,8 +67,8 @@ else:
     st.header(f"Welcome to Scrum Poker 🃏, :green[{st.session_state['user']['name']}]")
     st.divider()
 
-    history_label, new_session_btn = st.columns([2, 1], vertical_alignment='bottom')
-    history_label.subheader("History", divider=False)
+    history_label, new_session_btn = st.columns([3.7,1], vertical_alignment='bottom', gap='large')
+    history_label.subheader("Sessions", divider=False)
     if new_session_btn.button("New Session"):
         create_session()
 
@@ -69,7 +76,15 @@ else:
     if not sessions:
         st.write("No scrum sessions found.")
     else:
-        st.table(sessions)
+        st.dataframe(
+            data=sessions,
+            selection_mode="single-row",
+            column_order=["name", "date"],
+            use_container_width=True,
+            column_config={
+                'date': st.column_config.DatetimeColumn("Date", format='MMM D Y, H:mm a', timezone='Africa/Nairobi'),
+            },
+        )
 
 
 
