@@ -43,14 +43,17 @@ def create_session():
     with st.form("new_session", border=False, enter_to_submit=False):
         session_name = st.text_input("Enter session name")
         if st.form_submit_button("Start session"):
-            db.collection("scrum").add({
+            payload = {
                 "name": session_name,
                 "creator": st.session_state["user"]["id"],
                 "date": firestore.SERVER_TIMESTAMP,
                 "members": [st.session_state["user"]["id"]]
-            })
+            }
+            time, ref = db.collection("scrum").add(payload)
+            payload["id"] = ref.id
             st.cache_data.clear()
-            st.rerun()
+            st.session_state["selected_session"] = payload
+            st.switch_page("pages/scrum.py")
 
 
 if st.session_state.get("user") is None:
@@ -76,8 +79,10 @@ else:
     if not sessions:
         st.write("No scrum sessions found.")
     else:
-        st.dataframe(
+        event = st.dataframe(
+            key="sessions",
             data=sessions,
+            on_select="rerun",
             selection_mode="single-row",
             column_order=["name", "date"],
             use_container_width=True,
@@ -86,5 +91,10 @@ else:
             },
         )
 
+        if event.selection.rows:
+            selected_session = sessions[event.selection.rows[0]]
+            if st.button(f"Go to {selected_session['name']}"):
+                st.session_state["selected_session"] = selected_session
+                st.switch_page("pages/scrum.py")
 
 
