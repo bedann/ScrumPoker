@@ -3,3 +3,4 @@
 .venv
 firebase-creds.json
 settings.json
+__pycache__/
