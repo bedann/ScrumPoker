@@ -1,0 +1,5 @@
+/.streamlit/
+.idea
+.venv
+firebase-creds.json
+settings.json
