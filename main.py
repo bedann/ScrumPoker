@@ -29,7 +29,7 @@ def login(username, email):
     st.rerun()
 
 
-@st.cache_data()
+# @st.cache_data()//TODO reenable
 def load_sessions():
     scrum_sessions = (db.collection("scrum")
                       .where( filter=FieldFilter("members", "array_contains", st.session_state["user"]["id"]))
@@ -47,7 +47,10 @@ def create_session():
                 "name": session_name,
                 "creator": st.session_state["user"]["id"],
                 "date": firestore.SERVER_TIMESTAMP,
-                "members": [st.session_state["user"]["id"]]
+                "members": [st.session_state["user"]["id"]],
+                "member_names": {
+                    st.session_state["user"]["id"]: st.session_state["user"]["name"]
+                }
             }
             time, ref = db.collection("scrum").add(payload)
             payload["id"] = ref.id
