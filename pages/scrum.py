@@ -1,20 +1,54 @@
 import streamlit as st
-import firebase_admin
 from firebase_admin import firestore
 from images import waiting
 import random
 import pandas as pd
+import time
+from queue import Queue
+from utils import ref_to_dict
 
 db = firestore.client()
+q = Queue(maxsize=3)
 
 scrum = st.session_state['selected_session']
 user = st.session_state['user']
+doc_watch = None
+
+
+def on_snapshot(doc_snapshot, changes, read_time):
+    for doc in doc_snapshot:
+        print(f'Received document snapshot: {doc.id}')
+        q.put(ref_to_dict(doc))
+
+
+def listen_to_changes():
+    global doc_watch
+    if st.session_state.get("listener") is None:
+        st.session_state["listener"] = True
+        doc_ref = db.collection("scrum").document(scrum['id'])
+        doc_watch = doc_ref.on_snapshot(on_snapshot)
+
+    while True:
+        time.sleep(1)
+        doc = q.get()
+        print("Updating session...")
+        st.session_state['selected_session'] = doc
+        if doc == scrum:
+            continue
+        else:
+            break
+    st.session_state["listener"] = None
+    st.rerun()  # this is the problem, we need a way to rerun the script
+
 
 back_btn, scrum_title, members_col = st.columns([1, 4, 2], vertical_alignment='bottom', gap='small')
 
 scrum_title.header(scrum['name'])
 if back_btn.button("Back"):
     st.session_state["selected_session"] = None
+    st.session_state["listener"] = None
+    if doc_watch:
+        doc_watch.unsubscribe()
     st.switch_page("main.py")
 
 st.divider()
@@ -123,3 +157,8 @@ else:
     st.write("No active story. ")
     st.write("Voting will begin when scrum master starts a story. ::hourglass_flowing_sand::")
     st.image(random.choice(waiting))
+
+if st.session_state.get("listener") is None:
+    print("Listening to changes...")
+    listen_to_changes()
+    print("Listening to changes STOPPED >>>>...")
