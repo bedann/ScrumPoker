@@ -29,7 +29,7 @@ def login(username, email):
     st.rerun()
 
 
-# @st.cache_data()//TODO reenable
+@st.cache_data()
 def load_sessions():
     scrum_sessions = (db.collection("scrum")
                       .where( filter=FieldFilter("members", "array_contains", st.session_state["user"]["id"]))
@@ -55,8 +55,9 @@ def create_session():
             time, ref = db.collection("scrum").add(payload)
             payload["id"] = ref.id
             st.cache_data.clear()
-            st.session_state["selected_session"] = payload
-            st.switch_page("pages/scrum.py")
+            # st.session_state["selected_session"] = payload
+            st.rerun()
+            # st.switch_page("pages/scrum.py")
 
 
 if st.session_state.get("user") is None:
@@ -93,9 +94,10 @@ else:
                 'date': st.column_config.DatetimeColumn("Date", format='MMM D Y, H:mm a', timezone='Africa/Nairobi'),
             },
         )
+        st.write("Select a row from the first column to begin")
 
-        if event.selection.rows:
-            selected_session = sessions[event.selection.rows[0]]
+        if event.selection.rows or st.session_state.get("selected_session") is not None:
+            selected_session = st.session_state.get("selected_session") or sessions[event.selection.rows[0]]
             if st.button(f"Go to {selected_session['name']}"):
                 st.session_state["selected_session"] = selected_session
                 st.switch_page("pages/scrum.py")

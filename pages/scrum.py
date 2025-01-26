@@ -12,7 +12,7 @@ q = Queue(maxsize=3)
 
 scrum = st.session_state['selected_session']
 user = st.session_state['user']
-doc_watch = None
+# doc_watch = None
 
 
 def on_snapshot(doc_snapshot, changes, read_time):
@@ -22,14 +22,14 @@ def on_snapshot(doc_snapshot, changes, read_time):
 
 
 def listen_to_changes():
-    global doc_watch
+    # global doc_watch
     if st.session_state.get("listener") is None:
         st.session_state["listener"] = True
         doc_ref = db.collection("scrum").document(scrum['id'])
         doc_watch = doc_ref.on_snapshot(on_snapshot)
 
     while True:
-        time.sleep(1)
+        # time.sleep(1)
         doc = q.get()
         print("Updating session...")
         st.session_state['selected_session'] = doc
@@ -47,8 +47,8 @@ scrum_title.header(scrum['name'])
 if back_btn.button("Back"):
     st.session_state["selected_session"] = None
     st.session_state["listener"] = None
-    if doc_watch:
-        doc_watch.unsubscribe()
+    # if doc_watch:
+    #     doc_watch.unsubscribe()
     st.switch_page("main.py")
 
 st.divider()
@@ -66,18 +66,24 @@ def member_list():
         st.write(f":grey[{member_name}]")
 
 
+def create_form():
+    st.session_state.new_story = st.session_state.story_name
+    st.session_state.story_name = ''
+    story_data = {
+        "active_story": st.session_state.new_story,
+        "votes": {},
+        "voting_closed": False
+    }
+    db.collection("scrum").document(scrum['id']).update(story_data)
+    st.session_state['listener'] = None
+
+
 def story_form(button_label="Start Story"):
-    with st.form("new_story", border=False, enter_to_submit=False):
-        story_name = st.text_input("Enter story name", key="story_name")
-        if st.form_submit_button(button_label, use_container_width=True):
-            db.collection("scrum").document(scrum['id']).update({
-                "active_story": story_name,
-                "votes": {},
-                "voting_closed": False
-            })
-            st.success(f"Story '{story_name}' has been started. ")
-            st.session_state['story_name'] = None
-            st.rerun()
+    if 'new_story' not in st.session_state:
+        st.session_state.new_story = ''
+    with st.form("new_story_form", border=False, enter_to_submit=False):
+        st.text_input("Enter story name", key="story_name")
+        st.form_submit_button(button_label, use_container_width=True, on_click=create_form)
 
 
 if scrum.get("active_story") and scrum.get('voting_closed', False):
@@ -134,13 +140,13 @@ elif scrum.get("active_story"):
             if st.button("SUBMIT VOTE", use_container_width=True,
                          type="primary" if scrum["creator"] != user["id"] else "secondary"):
                 submit_vote()
-                st.rerun()
         if scrum["creator"] == user["id"]:
             if st.button("Close Voting", use_container_width=True, type="primary"):
                 # TODO("send active story data to history")
                 db.collection("scrum").document(scrum['id']).update({"voting_closed": True})
                 st.success("Voting has been closed. :stopwatch:")
                 st.session_state['my_vote'] = None
+                st.session_state['listener'] = None
                 st.rerun()
     with members_col:
         member_list()
