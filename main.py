@@ -85,6 +85,7 @@ else:
     col1.header(f"Welcome to Scrum Poker 🃏, :green[{st.session_state['user']['name']}]")
     if col2.button("Logout", type="tertiary"):
         st.session_state["user"] = None
+        st.cache_data.clear()
         st.rerun()
     st.divider()
 
