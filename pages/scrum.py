@@ -11,14 +11,13 @@ from statistics import mode
 db = firestore.client()
 q = Queue(maxsize=3)
 
-scrum = st.session_state['selected_session']
-user = st.session_state['user']
+scrum = st.session_state.get('selected_session')
+user = st.session_state.get('user')
 
 st.set_page_config(
     page_title=f"Scrum | {scrum['name']}" if scrum else "Scrum Poker 🃏︎",
     layout='centered',
 )
-# doc_watch = None
 
 
 def on_snapshot(doc_snapshot, changes, read_time):
@@ -49,12 +48,15 @@ def listen_to_changes():
 
 back_btn, scrum_title, members_col = st.columns([1, 4, 2], vertical_alignment='bottom', gap='small')
 
-scrum_title.header(scrum['name'])
+scrum_title.header(scrum['name'] if scrum else "No session selected")
 if back_btn.button("Back"):
     st.session_state["selected_session"] = None
     st.session_state["listener"] = None
     # if doc_watch:
     #     doc_watch.unsubscribe()
+    st.switch_page("main.py")
+
+if not scrum:
     st.switch_page("main.py")
 
 
